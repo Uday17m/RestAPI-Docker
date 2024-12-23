@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  server:
+    build: .  # Builds the image using the Dockerfile in the current directory
+    container_name: crud-server  # Name of the container
+    restart: always
+    ports:
+      - "8081:8081"  # Maps port 8081 of the host to port 8081 in the container
+    depends_on:
+      - mysqldb  # Ensures the MySQL service starts first
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysqldb:3306/sample-1
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+
+  mysqldb:
+    image: mysql:latest  # MySQL image
+    container_name: mysql-db  # Name of the MySQL container
+    ports:
+      - "3307:3306"  # Maps port 3307 of the host to port 3306 in the container
+    environment:
+      MYSQL_DATABASE: sample-1
+      MYSQL_USER: root
+      MYSQL_PASSWORD: root
+      MYSQL_ROOT_PASSWORD: root
+    volumes:
+      - db-data:/var/lib/mysql  # Persist database data
+
+volumes:
+  db-data:
+    driver: local
