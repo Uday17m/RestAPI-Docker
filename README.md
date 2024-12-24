@@ -147,11 +147,171 @@ Test the REST API using Postman or any HTTP client:
 
 ---
 
-## Additional Notes
+# Deployment Guide: Deploying CRUD Application to AWS EKS
+---
 
-- Ensure that the `docker-compose.yml` file is in the root directory of your project.
-- Use the appropriate environment variables for your database credentials.
-- Verify that Docker and Docker Compose are installed and running correctly before proceeding.
+## Steps to Deploy CRUD Application
 
-Enjoy managing your REST API and database with Docker Compose!
+---
+
+
+
+1.  MySQL Deployment and Service**
+Create a file named `mysql-deployment.yaml` with the following content:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql-db
+  labels:
+    app: mysql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:latest
+          ports:
+            - containerPort: 3306
+          env:
+            - name: MYSQL_DATABASE
+              value: sample-1
+            - name: MYSQL_USER
+              value: root
+            - name: MYSQL_PASSWORD
+              value: root
+            - name: MYSQL_ROOT_PASSWORD
+              value: root
+          volumeMounts:
+            - name: mysql-storage
+              mountPath: /var/lib/mysql
+      volumes:
+        - name: mysql-storage
+          persistentVolumeClaim:
+            claimName: mysql-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+```
+
+2. Create a file named `mysql-service.yaml`:
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-service
+spec:
+  ports:
+    - port: 3306
+      targetPort: 3306
+  selector:
+    app: mysql
+  type: ClusterIP
+```
+
+3. Server Deployment and Service**
+Create a file named `server-deployment.yaml`:
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crud-server
+  labels:
+    app: crud-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: crud-server
+  template:
+    metadata:
+      labels:
+        app: crud-server
+    spec:
+      containers:
+        - name: crud-server
+          image: <your-dockerhub-username>/crud-server:latest
+          ports:
+            - containerPort: 8081
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:mysql://mysql-service:3306/sample-1
+            - name: SPRING_DATASOURCE_USERNAME
+              value: root
+            - name: SPRING_DATASOURCE_PASSWORD
+              value: root
+```
+
+4. Create a file named `server-service.yaml`:
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: crud-server-service
+spec:
+  ports:
+    - port: 8081
+      targetPort: 8081
+  selector:
+    app: crud-server
+  type: LoadBalancer
+```
+
+---
+
+ Deploy to AWS EKS**
+
+ Set Context to Your EKS Cluster**
+```bash
+aws eks --region <your-region> update-kubeconfig --name <your-cluster-name>
+```
+
+ Apply Kubernetes Resources**
+1. Deploy MySQL resources:
+   ```bash
+   kubectl apply -f mysql-deployment.yaml
+   kubectl apply -f mysql-service.yaml
+   ```
+
+2. Deploy Server resources:
+   ```bash
+   kubectl apply -f server-deployment.yaml
+   kubectl apply -f server-service.yaml
+   ```
+
+---
+. Verify Deployment**
+1. Check running pods:
+   ```bash
+   kubectl get pods
+   ```
+
+2. Check services:
+   ```bash
+   kubectl get services
+   ```
+   Note the external IP of the `crud-server-service`. This is the LoadBalancer endpoint where your application will be accessible.
+
+---
+
+
+
+
+
 
